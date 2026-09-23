@@ -2,7 +2,7 @@ import {useEffect,useState} from 'react'
 import {createClient} from '@supabase/supabase-js'
 import {jsPDF} from 'jspdf'
 const sb=createClient(import.meta.env.VITE_SUPABASE_URL,import.meta.env.VITE_SUPABASE_ANON_KEY)
-const WA='947111222446'
+const WA='94711222446'
 const yen=n=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY'}).format(n)
 const unit=p=>Math.round(p.price*(1-(p.discount||0)/100))
 const calc=it=>{let sub=0,tax=0;it.forEach(i=>{const l=unit(i)*i.qty;sub+=l;tax+=Math.round(l*i.tax/100)});return{sub,tax,total:sub+tax}}
