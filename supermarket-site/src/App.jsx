@@ -28,7 +28,7 @@ function Shop(){
  async function confirm(){
   if(!f.name||!f.phone)return alert('Name and phone number are required')
   setBusy(true)
-  const {data,error}=await sb.from('orders').insert({customer_name:f.name,phone:f.phone,address:f.address,items:cart.map(i=>({name:i.name,price:unit(i),tax:i.tax,qty:i.qty})),subtotal:t.sub,tax:t.tax,total:t.total}).select().single()
+  const {data,error}=await sb.rpc('place_order',{p_name:f.name,p_phone:f.phone,p_address:f.address,p_items:cart.map(i=>({name:i.name,price:unit(i),tax:i.tax,qty:i.qty})),p_sub:t.sub,p_tax:t.tax,p_total:t.total})
   setBusy(false);if(error)return alert(error.message)
   const no=makePdf({...data});setCart([]);setOpen(false)
   const msg=`Hello! New order ${no}\nName: ${f.name}\nPhone: ${f.phone}\nTotal: ${yen(t.total)} (tax incl.)\nI am attaching the order PDF.`
