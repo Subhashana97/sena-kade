@@ -10,7 +10,7 @@ const orderNo=o=>'SO-'+new Date(o.created_at).getFullYear()+'-'+String(o.id).pad
 const isToday=d=>{const a=new Date(d),b=new Date();return a.toDateString()===b.toDateString()}
 
 function buildWaMessage(o,no){
- const lines=o.items.map(i=>`- ${i.name}  x${i.qty}  @ ${yen(i.price)} = ${yen(i.price*i.qty)}`).join('\n')
+ const lines=o.items.map((i,n)=>`${n+1}. ${i.name}  x${i.qty}  @ ${yen(i.price)} = ${yen(i.price*i.qty)}`).join('\n')
  return `NEW ORDER ${no} - Sena Kade\n\n`+
   `Items:\n${lines}\n\n`+
   `Subtotal: ${yen(o.subtotal)}\nTax: ${yen(o.tax)}\nTotal: ${yen(o.total)}\n\n`+
