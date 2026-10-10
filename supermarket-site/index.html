@@ -1,24 +1,51 @@
-<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Fresh Mart</title>
+<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Sena Kade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--g:#1f6b3a;--ink:#1c2620;--bg:#f5f7f3;--red:#d7263d;--line:#dfe5dc}
-*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;color:var(--ink);background:var(--bg)}
-button,input,select,textarea{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:#fff}
-button{cursor:pointer;background:var(--g);color:#fff;border:0}button.alt{background:#fff;color:var(--ink);border:1px solid var(--line)}button.del{background:var(--red)}
-button:disabled{opacity:.4;cursor:not-allowed}
-header{display:flex;gap:12px;align-items:center;padding:12px 16px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
-header h1{margin:0;font-size:20px;color:var(--g)}header input{flex:1;max-width:420px}
-.layout{display:flex;min-height:calc(100vh - 60px)}
+:root{
+  --navy:#172a45; --navy-2:#223a5e;
+  --sun1:#f6a21e; --sun2:#e8491c;
+  --pink:#e8196e; --pink-2:#ff4f8b;
+  --green:#2f8f4e; --red:#d7263d;
+  --cream:#fff8ee; --card:#ffffff; --line:#f0e3d0; --ink:#231a12;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Poppins',system-ui,sans-serif;color:var(--ink);background:var(--cream)}
+h1,h2,h3,.brand{font-family:'Fredoka',system-ui,sans-serif}
+button,input,select,textarea{font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+button{cursor:pointer;background:linear-gradient(135deg,var(--sun1),var(--pink));color:#fff;border:0;font-weight:600;box-shadow:0 3px 0 rgba(0,0,0,.08)}
+button.alt{background:#fff;color:var(--navy);border:1px solid var(--line);box-shadow:none}
+button.del{background:var(--pink-2)}
+button.ghost{background:transparent;color:var(--navy);box-shadow:none;border:1px solid transparent;padding:4px 8px}
+button:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+header{display:flex;gap:12px;align-items:center;padding:8px 18px;background:var(--navy);border-bottom:4px solid var(--sun1);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+header .logo{width:40px;height:40px;border-radius:50%;flex:none;object-fit:cover;box-shadow:0 0 0 2px var(--sun1)}
+header h1{margin:0;font-size:20px;color:#fff;letter-spacing:.3px;line-height:1.1}
+header h1 small{display:block;font-family:'Poppins';font-weight:400;font-size:10px;color:var(--sun1)}
+header input{flex:1;min-width:140px;max-width:420px}
+.layout{display:flex;min-height:calc(100vh - 62px)}
 aside{width:210px;padding:16px;background:#fff;border-right:1px solid var(--line)}
-aside div{padding:9px 10px;border-radius:6px;cursor:pointer}aside div.on{background:var(--g);color:#fff}
-main{flex:1;padding:16px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
-.card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px;position:relative}
-.card img,.ph{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;background:#e8eee5}
-.old{text-decoration:line-through;color:#888;font-size:13px}.price{font-weight:700;font-size:18px}
-.badge{position:absolute;top:14px;left:14px;background:var(--red);color:#fff;font-size:12px;padding:2px 8px;border-radius:10px}
-.drawer{position:fixed;right:0;top:0;bottom:0;width:min(400px,100%);background:#fff;padding:16px;overflow:auto;box-shadow:-4px 0 20px #0003;z-index:9}
-.row{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:8px 0}
-.form{display:grid;gap:8px;max-width:520px}.tabs{display:flex;gap:8px;margin-bottom:14px}
-table{width:100%;border-collapse:collapse;background:#fff}td,th{padding:8px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}
+aside div{padding:10px 12px;border-radius:10px;cursor:pointer;font-weight:600;color:var(--navy);margin-bottom:4px;display:flex;align-items:center;gap:6px}
+aside div.on{background:linear-gradient(135deg,var(--sun1),var(--pink));color:#fff}
+main{flex:1;padding:18px}
+.section-title{font-weight:700;color:var(--navy);margin:4px 0 10px;font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:6px;position:relative;box-shadow:0 2px 8px rgba(23,42,69,.05)}
+.card img,.ph{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;background:#f3ead9}
+.old{text-decoration:line-through;color:#999;font-size:13px}.price{font-weight:800;font-size:19px;color:var(--navy)}
+.badge{position:absolute;top:16px;left:16px;background:var(--pink);color:#fff;font-size:12px;font-weight:700;padding:3px 10px;border-radius:12px}
+.badge.new{background:var(--green);left:auto;right:16px}
+.drawer{position:fixed;right:0;top:0;bottom:0;width:min(400px,100%);background:#fff;padding:18px;overflow:auto;box-shadow:-6px 0 24px #0003;z-index:9;border-left:4px solid var(--sun1)}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:9px 0}
+.form{display:grid;gap:9px;max-width:520px}.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden}
+td,th{padding:9px;border-bottom:1px solid var(--line);text-align:left;font-size:13px;vertical-align:middle}
+th{background:var(--navy);color:#fff}
+.kv{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.kv small{color:#8a7a60;font-weight:600}
+.kv h2{margin:4px 0 0;font-size:26px;color:var(--navy)}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.chip{display:inline-block;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;color:#fff}
+.actions{display:flex;gap:4px;flex-wrap:wrap}
 @media(max-width:700px){.layout{flex-direction:column}aside{width:100%;display:flex;overflow:auto;gap:6px;border-right:0}aside div{white-space:nowrap}}
 </style></head><body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body></html>
