@@ -26,7 +26,7 @@ function Shop(){
  const newArrivals=prods.filter(p=>p.new_arrival)
  const shown=cat==='new'?newArrivals.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())):
   prods.filter(p=>(!cat||p.category_id===cat)&&p.name.toLowerCase().includes(q.toLowerCase()))
- const add=p=>setCart(c=>c.find(i=>i.id===p.id)?c.map(i=>i.id===p.id?{...i,qty:i.qty+1}:i):[...c,{...p,qty:1}])
+ const add=(p,n=1)=>setCart(c=>c.find(i=>i.id===p.id)?c.map(i=>i.id===p.id?{...i,qty:i.qty+n}:i):[...c,{...p,qty:n}])
  const chg=(id,n)=>setCart(c=>c.map(i=>i.id===id?{...i,qty:i.qty+n}:i).filter(i=>i.qty>0))
  const t=calc(cart)
  async function confirm(){
@@ -49,10 +49,10 @@ function Shop(){
   <main>
    {!cat&&!q&&newArrivals.length>0&&<>
     <div className="section-title">New Arrivals</div>
-    <div className="grid" style={{marginBottom:24}}>{newArrivals.map(p=><ProductCard key={p.id} p={p} add={add} chg={chg} qtyInCart={(cart.find(i=>i.id===p.id)||{}).qty||0}/>)}</div>
+    <div className="grid" style={{marginBottom:24}}>{newArrivals.map(p=><ProductCard key={p.id} p={p} add={add} qtyInCart={(cart.find(i=>i.id===p.id)||{}).qty||0}/>)}</div>
     <div className="section-title">All Items</div></>}
    {!shown.length&&<p>No items in this category yet.</p>}
-   <div className="grid">{shown.map(p=><ProductCard key={p.id} p={p} add={add} chg={chg} qtyInCart={(cart.find(i=>i.id===p.id)||{}).qty||0}/>)}</div></main></div>
+   <div className="grid">{shown.map(p=><ProductCard key={p.id} p={p} add={add} qtyInCart={(cart.find(i=>i.id===p.id)||{}).qty||0}/>)}</div></main></div>
   {open&&<div className="drawer"><div className="row"><h3>Your basket</h3><button className="alt" onClick={()=>setOpen(false)}>Close</button></div>
    {!cart.length&&<p>Your basket is empty.</p>}
    {cart.map(i=><div className="row" key={i.id}><span>{i.name}<br/><small>{yen(unit(i))} x {i.qty}</small></span>
@@ -65,21 +65,23 @@ function Shop(){
     <button disabled={busy} onClick={confirm}>Confirm order → WhatsApp</button></div></>}</div>}
  </>}
 
-function ProductCard({p,add,chg,qtyInCart}){
+function ProductCard({p,add,qtyInCart}){
+ const [sel,setSel]=useState(1)
+ const maxSel=Math.max(0,p.stock-qtyInCart)
  return <div className="card">
   {p.discount>0&&<span className="badge">-{p.discount}%</span>}
   {p.new_arrival&&<span className="badge new">NEW</span>}
   {p.image_url?<img src={p.image_url} alt={p.name}/>:<div className="ph"/>}
   <b>{p.name}</b><div>{p.discount>0&&<span className="old">{yen(p.price)} </span>}<span className="price">{yen(unit(p))}</span></div>
-  <small>Tax {p.tax}% extra</small>
-  {!p.available||p.stock<1?<button disabled>Sold out</button>:
-   qtyInCart>0?
-    <div className="row" style={{margin:0}}>
-     <button className="alt" onClick={()=>chg(p.id,-1)}>-</button>
-     <b>{qtyInCart}</b>
-     <button className="alt" onClick={()=>chg(p.id,1)} disabled={qtyInCart>=p.stock}>+</button>
-    </div>
-   :<button onClick={()=>add(p)}>Add to basket</button>}
+  <small>Tax {p.tax}% extra{qtyInCart>0?` • ${qtyInCart} in basket`:''}</small>
+  {!p.available||p.stock<1?<button disabled>Sold out</button>:<>
+   <div className="row" style={{margin:0}}>
+    <button className="alt" onClick={()=>setSel(n=>Math.max(1,n-1))}>-</button>
+    <b>{sel}</b>
+    <button className="alt" onClick={()=>setSel(n=>Math.min(maxSel||1,n+1))} disabled={sel>=maxSel}>+</button>
+   </div>
+   <button disabled={maxSel<1} onClick={()=>{add(p,sel);setSel(1)}}>{maxSel<1?'Sold out':'Add to basket'}</button>
+  </>}
   </div>}
 
 const blank={name:'',price:0,tax:10,discount:0,available:true,new_arrival:false,stock:0,category_id:'',description:'',sku:'',image_url:''}
