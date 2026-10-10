@@ -141,17 +141,18 @@ function Admin(){
   </>}
 
   {tab==='p'&&<><div className="form kv"><h3>{p.id?'Edit product':'Add new product'}</h3>
-   <input placeholder="Item name" value={p.name} onChange={e=>setP({...p,name:e.target.value})}/>
-   <input type="number" placeholder="Price (JPY)" value={p.price} onChange={num('price')}/>
-   <input type="number" placeholder="Tax %" value={p.tax} onChange={num('tax')}/>
-   <input type="number" placeholder="Discount %" value={p.discount} onChange={num('discount')}/>
-   <input type="number" placeholder="Stock qty" value={p.stock} onChange={num('stock')}/>
-   <select value={p.category_id||''} onChange={e=>setP({...p,category_id:e.target.value?Number(e.target.value):''})}><option value="">No category</option>{cats.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
-   <input placeholder="SKU / barcode" value={p.sku||''} onChange={e=>setP({...p,sku:e.target.value})}/>
-   <textarea placeholder="Description" value={p.description||''} onChange={e=>setP({...p,description:e.target.value})}/>
+   <div><small style={{fontWeight:700,color:'var(--navy)'}}>Item name</small><input placeholder="e.g. Araliya Sudu Kekulu - 5Kg" value={p.name} onChange={e=>setP({...p,name:e.target.value})}/></div>
+   <div><small style={{fontWeight:700,color:'var(--navy)'}}>Price (JPY)</small><input type="number" value={p.price} onChange={num('price')}/></div>
+   <div><small style={{fontWeight:700,color:'var(--navy)'}}>Tax %</small><input type="number" value={p.tax} onChange={num('tax')}/></div>
+   <div><small style={{fontWeight:700,color:'var(--navy)'}}>Discount %</small><input type="number" value={p.discount} onChange={num('discount')}/></div>
+   <div><small style={{fontWeight:700,color:'var(--navy)'}}>Stock quantity</small><input type="number" value={p.stock} onChange={num('stock')}/></div>
+   <div><small style={{fontWeight:700,color:'var(--navy)'}}>Category</small>
+    <select value={p.category_id||''} onChange={e=>setP({...p,category_id:e.target.value?Number(e.target.value):''})}><option value="">No category</option>{cats.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+   <div><small style={{fontWeight:700,color:'var(--navy)'}}>SKU / barcode</small><input value={p.sku||''} onChange={e=>setP({...p,sku:e.target.value})}/></div>
+   <div><small style={{fontWeight:700,color:'var(--navy)'}}>Description</small><textarea value={p.description||''} onChange={e=>setP({...p,description:e.target.value})}/></div>
    <label><input type="checkbox" checked={p.available} onChange={e=>setP({...p,available:e.target.checked})}/> Available</label>
    <label><input type="checkbox" checked={!!p.new_arrival} onChange={e=>setP({...p,new_arrival:e.target.checked})}/> Mark as New Arrival</label>
-   <input type="file" accept="image/*" onChange={upload}/>{p.image_url&&<img src={p.image_url} width="80" alt=""/>}
+   <div><small style={{fontWeight:700,color:'var(--navy)'}}>Product image</small><input type="file" accept="image/*" onChange={upload}/>{p.image_url&&<img src={p.image_url} width="80" alt="" style={{display:'block',marginTop:6}}/>}</div>
    <div className="row"><button onClick={save}>{p.id?'Save changes':'Add product'}</button>{p.id&&<button className="alt" onClick={()=>setP(blank)}>Cancel</button>}</div></div>
 
    <input placeholder="Search products..." value={pq} onChange={e=>setPq(e.target.value)} style={{marginBottom:10,width:'100%',maxWidth:320}}/>
