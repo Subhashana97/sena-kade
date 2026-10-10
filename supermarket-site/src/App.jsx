@@ -135,7 +135,7 @@ function Admin(){
    </tbody></table>
    <div className="section-title" style={{marginTop:18}}>Recent order details</div>
    <table><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Status</th></tr></thead><tbody>
-    {orders.slice(0,8).map(o=><tr key={o.id}><td>{orderNo(o)}</td><td>{o.customer_name}<br/><small>{o.phone}</small></td><td>{yen(o.total)}</td>
+    {orders.slice(0,8).map(o=><tr key={o.id}><td><a href={'#/invoice/'+o.id} target="_blank" rel="noopener" style={{color:'var(--pink)',fontWeight:700,textDecoration:'underline'}}>{orderNo(o)}</a></td><td>{o.customer_name}<br/><small>{o.phone}</small></td><td>{yen(o.total)}</td>
      <td><span className="chip" style={{background:statusColor[o.status]}}>{o.status}</span></td></tr>)}
    </tbody></table>
   </>}
@@ -169,11 +169,78 @@ function Admin(){
   {tab==='c'&&<><div className="row kv" style={{justifyContent:'flex-start'}}><input placeholder="New category" value={cn} onChange={e=>setCn(e.target.value)}/><button onClick={async()=>{if(!cn)return;const r=await sb.from('categories').insert({name:cn});if(r.error)return alert(r.error.message);setCn('');load()}}>Add category</button></div>
    <table><tbody>{cats.map(c=><tr key={c.id}><td>{c.name}</td><td><button className="del" onClick={async()=>{if(confirm('Delete category? Its items stay, uncategorised.')){await sb.from('categories').delete().eq('id',c.id);load()}}}>Delete</button></td></tr>)}</tbody></table></>}
 
-  {tab==='o'&&<table><thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th></tr></thead><tbody>{orders.map(o=><tr key={o.id}><td>{orderNo(o)}</td><td>{o.customer_name}<br/><small>{o.phone}</small><br/><small>{o.address}</small></td>
+  {tab==='o'&&<table><thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th></tr></thead><tbody>{orders.map(o=><tr key={o.id}>
+   <td><a href={'#/invoice/'+o.id} target="_blank" rel="noopener" style={{color:'var(--pink)',fontWeight:700,textDecoration:'underline',cursor:'pointer'}}>{orderNo(o)}</a></td>
+   <td>{o.customer_name}<br/><small>{o.phone}</small><br/><small>{o.address}</small></td>
    <td>{o.items.map(i=>`${i.name} x${i.qty}`).join(', ')}</td><td>{yen(o.total)}</td>
    <td><select style={{borderColor:statusColor[o.status]}} value={o.status} onChange={async e=>{await sb.from('orders').update({status:e.target.value}).eq('id',o.id);load()}}>{['Pending','Confirmed','Delivered','Cancelled'].map(s=><option key={s}>{s}</option>)}</select></td></tr>)}</tbody></table>}
  </div>}
 
+function Invoice(){
+ const id=location.hash.split('/')[2]
+ const [o,setO]=useState(null),[err,setErr]=useState(''),[loading,setLoading]=useState(true)
+ useEffect(()=>{
+  sb.from('orders').select('*').eq('id',id).single().then(r=>{
+   setLoading(false)
+   if(r.error||!r.data){setErr('Could not load this order. You may need to be signed in as admin.');return}
+   setO(r.data)
+  })
+ },[id])
+ if(loading)return <div style={{padding:40,fontFamily:'Poppins,sans-serif'}}>Loading invoice...</div>
+ if(err)return <div style={{padding:40,fontFamily:'Poppins,sans-serif'}}>{err}<br/><a href="#/admin">Go to admin login</a></div>
+ const no=orderNo(o)
+ const date=new Date(o.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})
+ return <div style={{maxWidth:800,margin:'0 auto',padding:'36px 40px',fontFamily:"'Poppins',Arial,sans-serif",color:'#1a1a1a',background:'#fff'}}>
+  <style>{'@media print{.no-print{display:none}} body{background:#fff}'}</style>
+  <div className="no-print" style={{textAlign:'right',marginBottom:16}}>
+   <button onClick={()=>window.print()}>Print / Save as PDF</button>
+  </div>
+  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',borderBottom:'3px solid #172a45',paddingBottom:18,marginBottom:24}}>
+   <div><img src={logo} alt="Sena Kade" width="56" style={{borderRadius:'50%'}}/>
+    <h2 style={{margin:'8px 0 0',color:'#172a45'}}>Sena Kade</h2>
+    <small style={{color:'#666'}}>Shizuoka, Japan</small></div>
+   <div style={{textAlign:'right'}}>
+    <h1 style={{margin:0,letterSpacing:2,color:'#172a45'}}>INVOICE</h1>
+    <div style={{marginTop:6,fontSize:14}}><b>Invoice No:</b> {no}</div>
+    <div style={{fontSize:14}}><b>Date:</b> {date}</div>
+    <div style={{fontSize:14}}><b>Status:</b> {o.status}</div>
+   </div>
+  </div>
+  <div style={{display:'flex',justifyContent:'space-between',marginBottom:24}}>
+   <div><small style={{color:'#888',fontWeight:700}}>BILL TO</small>
+    <div style={{fontSize:15,marginTop:4}}><b>{o.customer_name}</b><br/>{o.phone}<br/>{o.address||'-'}</div></div>
+  </div>
+  <table style={{width:'100%',borderCollapse:'collapse',marginBottom:20}}>
+   <thead><tr style={{background:'#172a45',color:'#fff'}}>
+    <th style={{padding:'8px 10px',textAlign:'left'}}>#</th>
+    <th style={{padding:'8px 10px',textAlign:'left'}}>Description</th>
+    <th style={{padding:'8px 10px',textAlign:'right'}}>Qty</th>
+    <th style={{padding:'8px 10px',textAlign:'right'}}>Unit Price</th>
+    <th style={{padding:'8px 10px',textAlign:'right'}}>Tax</th>
+    <th style={{padding:'8px 10px',textAlign:'right'}}>Amount</th>
+   </tr></thead>
+   <tbody>{o.items.map((i,n)=><tr key={n} style={{borderBottom:'1px solid #e5e5e5'}}>
+    <td style={{padding:'8px 10px'}}>{n+1}</td>
+    <td style={{padding:'8px 10px'}}>{i.name}</td>
+    <td style={{padding:'8px 10px',textAlign:'right'}}>{i.qty}</td>
+    <td style={{padding:'8px 10px',textAlign:'right'}}>{yen(i.price)}</td>
+    <td style={{padding:'8px 10px',textAlign:'right'}}>{i.tax}%</td>
+    <td style={{padding:'8px 10px',textAlign:'right'}}>{yen(i.price*i.qty)}</td>
+   </tr>)}</tbody>
+  </table>
+  <div style={{display:'flex',justifyContent:'flex-end'}}>
+   <table style={{minWidth:260}}><tbody>
+    <tr><td style={{padding:'4px 10px'}}>Subtotal</td><td style={{padding:'4px 10px',textAlign:'right'}}>{yen(o.subtotal)}</td></tr>
+    <tr><td style={{padding:'4px 10px'}}>Tax</td><td style={{padding:'4px 10px',textAlign:'right'}}>{yen(o.tax)}</td></tr>
+    <tr style={{borderTop:'2px solid #172a45',fontWeight:700,fontSize:17}}><td style={{padding:'8px 10px'}}>Total (JPY)</td><td style={{padding:'8px 10px',textAlign:'right'}}>{yen(o.total)}</td></tr>
+   </tbody></table>
+  </div>
+  <div style={{marginTop:40,paddingTop:16,borderTop:'1px solid #e5e5e5',fontSize:12,color:'#888',textAlign:'center'}}>
+   Thank you for shopping with Sena Kade. This is a computer-generated invoice.
+  </div>
+ </div>}
+
 export default function App(){
  const [h,setH]=useState(location.hash);useEffect(()=>{const f=()=>setH(location.hash);addEventListener('hashchange',f);return()=>removeEventListener('hashchange',f)},[])
+ if(h.startsWith('#/invoice/'))return <Invoice/>
  return h.startsWith('#/admin')?<Admin/>:<Shop/>}
