@@ -1,6 +1,5 @@
 import {useEffect,useState} from 'react'
 import {createClient} from '@supabase/supabase-js'
-import {jsPDF} from 'jspdf'
 import logo from './assets/logo.png'
 const sb=createClient(import.meta.env.VITE_SUPABASE_URL,import.meta.env.VITE_SUPABASE_ANON_KEY)
 const WA=import.meta.env.VITE_WHATSAPP_NUMBER||'94711222446'
@@ -10,20 +9,12 @@ const calc=it=>{let sub=0,tax=0;it.forEach(i=>{const l=unit(i)*i.qty;sub+=l;tax+
 const orderNo=o=>'SO-'+new Date(o.created_at).getFullYear()+'-'+String(o.id).padStart(4,'0')
 const isToday=d=>{const a=new Date(d),b=new Date();return a.toDateString()===b.toDateString()}
 
-function makePdf(o){
- const d=new jsPDF(),no=orderNo(o);d.setFontSize(16);d.text('Sena Kade - Sales Order '+no,14,18);d.setFontSize(10)
- d.text('Customer: '+o.customer_name+'   Tel: '+o.phone,14,28);d.text('Delivery address: '+(o.address||'-'),14,34)
- let y=46;const head=()=>{d.text('Item',14,y);d.text('Qty',110,y);d.text('Price',132,y);d.text('Tax%',160,y);d.text('Line total',196,y,{align:'right'});y+=8}
- head();o.items.forEach(i=>{if(y>270){d.addPage();y=20;head()}
-  d.text(String(i.name).slice(0,42),14,y);d.text(String(i.qty),110,y);d.text(yen(i.price),132,y);d.text(i.tax+'%',160,y);d.text(yen(i.price*i.qty),196,y,{align:'right'});y+=7})
- y+=6;d.text('Subtotal: '+yen(o.subtotal),196,y,{align:'right'});d.text('Tax: '+yen(o.tax),196,y+7,{align:'right'})
- d.setFontSize(13);d.text('Total: '+yen(o.total),196,y+16,{align:'right'});d.save(no+'.pdf');return no}
-
 function buildWaMessage(o,no){
- return `🧺 *New Order ${no}* — Sena Kade\n\n`+
-  `👤 Customer: ${o.customer_name}\n📞 Mobile: ${o.phone}\n📍 Delivery address: ${o.address||'-'}\n\n`+
-  `Total: *${yen(o.total)}* (tax incl.)\n\n`+
-  `📄 Full item list + quantities are in the PDF just downloaded — please attach it here.`
+ const lines=o.items.map(i=>`- ${i.name}  x${i.qty}  @ ${yen(i.price)} = ${yen(i.price*i.qty)}`).join('\n')
+ return `NEW ORDER ${no} - Sena Kade\n\n`+
+  `Items:\n${lines}\n\n`+
+  `Subtotal: ${yen(o.subtotal)}\nTax: ${yen(o.tax)}\nTotal: ${yen(o.total)}\n\n`+
+  `Customer: ${o.customer_name}\nMobile: ${o.phone}\nDelivery address: ${o.address||'-'}`
 }
 
 function Shop(){
@@ -44,7 +35,7 @@ function Shop(){
   const {data,error}=await sb.rpc('place_order',{p_name:f.name,p_phone:f.phone,p_address:f.address,
    p_items:cart.map(i=>({name:i.name,price:unit(i),tax:i.tax,qty:i.qty})),p_sub:t.sub,p_tax:t.tax,p_total:t.total})
   setBusy(false);if(error)return alert(error.message)
-  const no=makePdf(data)
+  const no=orderNo(data)
   setCart([]);setOpen(false)
   window.open(`https://wa.me/${WA}?text=${encodeURIComponent(buildWaMessage(data,no))}`,'_blank')}
  return <>
@@ -53,15 +44,15 @@ function Shop(){
    <button onClick={()=>setOpen(true)}>Basket ({cart.reduce((a,i)=>a+i.qty,0)})</button></header>
   <div className="layout"><aside>
    <div className={!cat?'on':''} onClick={()=>setCat(null)}>All items</div>
-   {newArrivals.length>0&&<div className={cat==='new'?'on':''} onClick={()=>setCat('new')}>🆕 New arrivals</div>}
+   {newArrivals.length>0&&<div className={cat==='new'?'on':''} onClick={()=>setCat('new')}>New Arrivals</div>}
    {cats.map(c=><div key={c.id} className={cat===c.id?'on':''} onClick={()=>setCat(c.id)}>{c.name}</div>)}</aside>
   <main>
    {!cat&&!q&&newArrivals.length>0&&<>
-    <div className="section-title">🆕 New Arrivals</div>
-    <div className="grid" style={{marginBottom:24}}>{newArrivals.map(p=><ProductCard key={p.id} p={p} add={add}/>)}</div>
+    <div className="section-title">New Arrivals</div>
+    <div className="grid" style={{marginBottom:24}}>{newArrivals.map(p=><ProductCard key={p.id} p={p} add={add} chg={chg} qtyInCart={(cart.find(i=>i.id===p.id)||{}).qty||0}/>)}</div>
     <div className="section-title">All Items</div></>}
    {!shown.length&&<p>No items in this category yet.</p>}
-   <div className="grid">{shown.map(p=><ProductCard key={p.id} p={p} add={add}/>)}</div></main></div>
+   <div className="grid">{shown.map(p=><ProductCard key={p.id} p={p} add={add} chg={chg} qtyInCart={(cart.find(i=>i.id===p.id)||{}).qty||0}/>)}</div></main></div>
   {open&&<div className="drawer"><div className="row"><h3>Your basket</h3><button className="alt" onClick={()=>setOpen(false)}>Close</button></div>
    {!cart.length&&<p>Your basket is empty.</p>}
    {cart.map(i=><div className="row" key={i.id}><span>{i.name}<br/><small>{yen(unit(i))} x {i.qty}</small></span>
@@ -71,17 +62,25 @@ function Shop(){
    <div className="form"><input placeholder="Customer name" value={f.name} onChange={e=>setF({...f,name:e.target.value})}/>
     <input placeholder="Mobile number" value={f.phone} onChange={e=>setF({...f,phone:e.target.value})}/>
     <textarea placeholder="Delivery address" value={f.address} onChange={e=>setF({...f,address:e.target.value})}/>
-    <button disabled={busy} onClick={confirm}>Confirm order → PDF + WhatsApp</button></div></>}</div>}
+    <button disabled={busy} onClick={confirm}>Confirm order → WhatsApp</button></div></>}</div>}
  </>}
 
-function ProductCard({p,add}){
+function ProductCard({p,add,chg,qtyInCart}){
  return <div className="card">
   {p.discount>0&&<span className="badge">-{p.discount}%</span>}
   {p.new_arrival&&<span className="badge new">NEW</span>}
   {p.image_url?<img src={p.image_url} alt={p.name}/>:<div className="ph"/>}
   <b>{p.name}</b><div>{p.discount>0&&<span className="old">{yen(p.price)} </span>}<span className="price">{yen(unit(p))}</span></div>
   <small>Tax {p.tax}% extra</small>
-  <button disabled={!p.available||p.stock<1} onClick={()=>add(p)}>{p.available&&p.stock>0?'Add to basket':'Sold out'}</button></div>}
+  {!p.available||p.stock<1?<button disabled>Sold out</button>:
+   qtyInCart>0?
+    <div className="row" style={{margin:0}}>
+     <button className="alt" onClick={()=>chg(p.id,-1)}>-</button>
+     <b>{qtyInCart}</b>
+     <button className="alt" onClick={()=>chg(p.id,1)} disabled={qtyInCart>=p.stock}>+</button>
+    </div>
+   :<button onClick={()=>add(p)}>Add to basket</button>}
+  </div>}
 
 const blank={name:'',price:0,tax:10,discount:0,available:true,new_arrival:false,stock:0,category_id:'',description:'',sku:'',image_url:''}
 const statusColor={Pending:'#f6a21e',Confirmed:'#2f8f4e',Delivered:'#223a5e',Cancelled:'#d7263d'}
