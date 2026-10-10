@@ -39,11 +39,13 @@ function Shop(){
   setCart([]);setOpen(false)
   window.open(`https://wa.me/${WA}?text=${encodeURIComponent(buildWaMessage(data,no))}`,'_blank')}
  return <>
-  <header><img className="logo" src={logo} alt="Sena Kade"/><h1>Sena Kade<small>セナカデー</small></h1>
+  <header>
+   <img className="logo" src={logo} alt="Sena Kade" style={{cursor:'pointer'}} onClick={()=>{setCat(null);setQ('')}}/>
+   <h1 style={{cursor:'pointer'}} onClick={()=>{setCat(null);setQ('')}}>Sena Kade<small>セナカデー</small></h1>
    <input placeholder="Search items..." value={q} onChange={e=>setQ(e.target.value)}/>
    <button onClick={()=>setOpen(true)}>Basket ({cart.reduce((a,i)=>a+i.qty,0)})</button></header>
   <div className="layout"><aside>
-   <div className={!cat?'on':''} onClick={()=>setCat(null)}>All items</div>
+   <div className={!cat?'on':''} onClick={()=>{setCat(null);setQ('')}}>All items</div>
    {newArrivals.length>0&&<div className={cat==='new'?'on':''} onClick={()=>setCat('new')}>New Arrivals</div>}
    {cats.map(c=><div key={c.id} className={cat===c.id?'on':''} onClick={()=>setCat(c.id)}>{c.name}</div>)}</aside>
   <main>
