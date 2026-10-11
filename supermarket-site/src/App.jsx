@@ -2,7 +2,7 @@ import {useEffect,useState} from 'react'
 import {createClient} from '@supabase/supabase-js'
 import logo from './assets/logo.png'
 const sb=createClient(import.meta.env.VITE_SUPABASE_URL,import.meta.env.VITE_SUPABASE_ANON_KEY)
-const WA=import.meta.env.VITE_WHATSAPP_NUMBER||'817086901215'
+const WA=import.meta.env.VITE_WHATSAPP_NUMBER||'94711222446'
 const yen=n=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY'}).format(n)
 const unit=p=>Math.round(p.price*(1-(p.discount||0)/100))
 const calc=it=>{let sub=0,tax=0;it.forEach(i=>{const l=unit(i)*i.qty;sub+=l;tax+=Math.round(l*i.tax/100)});return{sub,tax,total:sub+tax}}
@@ -14,13 +14,14 @@ function buildWaMessage(o,no){
  return `NEW ORDER ${no} - Sena Kade\n\n`+
   `Items:\n${lines}\n\n`+
   `Subtotal: ${yen(o.subtotal)}\nTax: ${yen(o.tax)}\nTotal: ${yen(o.total)}\n\n`+
-  `Customer: ${o.customer_name}\nMobile: ${o.phone}\nDelivery address: ${o.address||'-'}`
+  `Customer: ${o.customer_name}\nMobile: ${o.phone}\nDelivery address: ${o.address||'-'}\n`+
+  `Delivery date: ${o.delivery_date||'-'}\nDelivery time: ${o.delivery_time||'-'}`
 }
 
 function Shop(){
  const [cats,setCats]=useState([]),[prods,setProds]=useState([]),[cat,setCat]=useState(null),[q,setQ]=useState('')
  const [cart,setCart]=useState(()=>{try{return JSON.parse(localStorage.cart)||[]}catch{return[]}})
- const [open,setOpen]=useState(false),[f,setF]=useState({name:'',phone:'',address:''}),[busy,setBusy]=useState(false)
+ const [open,setOpen]=useState(false),[f,setF]=useState({name:'',phone:'',address:'',delivery_date:'',delivery_time:''}),[busy,setBusy]=useState(false)
  useEffect(()=>{sb.from('categories').select('*').order('name').then(r=>setCats(r.data||[]));sb.from('products').select('*').order('name').then(r=>setProds(r.data||[]))},[])
  useEffect(()=>{localStorage.cart=JSON.stringify(cart)},[cart])
  const newArrivals=prods.filter(p=>p.new_arrival)
@@ -31,12 +32,14 @@ function Shop(){
  const t=calc(cart)
  async function confirm(){
   if(!f.name||!f.phone)return alert('Name and mobile number are required')
+  if(!f.delivery_date)return alert('Please choose a delivery date')
   setBusy(true)
   const {data,error}=await sb.rpc('place_order',{p_name:f.name,p_phone:f.phone,p_address:f.address,
-   p_items:cart.map(i=>({name:i.name,price:unit(i),tax:i.tax,qty:i.qty})),p_sub:t.sub,p_tax:t.tax,p_total:t.total})
+   p_items:cart.map(i=>({name:i.name,price:unit(i),tax:i.tax,qty:i.qty})),p_sub:t.sub,p_tax:t.tax,p_total:t.total,
+   p_delivery_date:f.delivery_date,p_delivery_time:f.delivery_time})
   setBusy(false);if(error)return alert(error.message)
   const no=orderNo(data)
-  setCart([]);setOpen(false)
+  setCart([]);setOpen(false);setF({name:'',phone:'',address:'',delivery_date:'',delivery_time:''})
   window.open(`https://wa.me/${WA}?text=${encodeURIComponent(buildWaMessage(data,no))}`,'_blank')}
  return <>
   <header>
@@ -64,6 +67,10 @@ function Shop(){
    <div className="form"><input placeholder="Customer name" value={f.name} onChange={e=>setF({...f,name:e.target.value})}/>
     <input placeholder="Mobile number" value={f.phone} onChange={e=>setF({...f,phone:e.target.value})}/>
     <textarea placeholder="Delivery address" value={f.address} onChange={e=>setF({...f,address:e.target.value})}/>
+    <div><small style={{fontWeight:700,color:'var(--navy)'}}>Delivery date</small>
+     <input type="date" min={new Date().toISOString().slice(0,10)} value={f.delivery_date} onChange={e=>setF({...f,delivery_date:e.target.value})} style={{width:'100%'}}/></div>
+    <div><small style={{fontWeight:700,color:'var(--navy)'}}>Delivery time slot</small>
+     <input placeholder="e.g. Evening, or 2pm - 4pm" value={f.delivery_time} onChange={e=>setF({...f,delivery_time:e.target.value})} style={{width:'100%'}}/></div>
     <button disabled={busy} onClick={confirm}>Confirm order → WhatsApp</button></div></>}</div>}
  </>}
 
@@ -171,7 +178,7 @@ function Admin(){
 
   {tab==='o'&&<table><thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th></tr></thead><tbody>{orders.map(o=><tr key={o.id}>
    <td><a href={'#/invoice/'+o.id} target="_blank" rel="noopener" style={{color:'var(--pink)',fontWeight:700,textDecoration:'underline',cursor:'pointer'}}>{orderNo(o)}</a></td>
-   <td>{o.customer_name}<br/><small>{o.phone}</small><br/><small>{o.address}</small></td>
+   <td>{o.customer_name}<br/><small>{o.phone}</small><br/><small>{o.address}</small><br/><small>Delivery: {o.delivery_date||'-'} {o.delivery_time||''}</small></td>
    <td>{o.items.map(i=>`${i.name} x${i.qty}`).join(', ')}</td><td>{yen(o.total)}</td>
    <td><select style={{borderColor:statusColor[o.status]}} value={o.status} onChange={async e=>{await sb.from('orders').update({status:e.target.value}).eq('id',o.id);load()}}>{['Pending','Confirmed','Delivered','Cancelled'].map(s=><option key={s}>{s}</option>)}</select></td></tr>)}</tbody></table>}
  </div>}
@@ -209,6 +216,8 @@ function Invoice(){
   <div style={{display:'flex',justifyContent:'space-between',marginBottom:24}}>
    <div><small style={{color:'#888',fontWeight:700}}>BILL TO</small>
     <div style={{fontSize:15,marginTop:4}}><b>{o.customer_name}</b><br/>{o.phone}<br/>{o.address||'-'}</div></div>
+   <div style={{textAlign:'right'}}><small style={{color:'#888',fontWeight:700}}>DELIVERY</small>
+    <div style={{fontSize:15,marginTop:4}}>{o.delivery_date||'-'}<br/>{o.delivery_time||'-'}</div></div>
   </div>
   <table style={{width:'100%',borderCollapse:'collapse',marginBottom:20}}>
    <thead><tr style={{background:'#172a45',color:'#fff'}}>
