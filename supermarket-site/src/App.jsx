@@ -2,7 +2,7 @@ import {useEffect,useState} from 'react'
 import {createClient} from '@supabase/supabase-js'
 import logo from './assets/logo.png'
 const sb=createClient(import.meta.env.VITE_SUPABASE_URL,import.meta.env.VITE_SUPABASE_ANON_KEY)
-const WA=import.meta.env.VITE_WHATSAPP_NUMBER||'817086901215'
+const WA=import.meta.env.VITE_WHATSAPP_NUMBER||'94711222446'
 const yen=n=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY'}).format(n)
 const unit=p=>Math.round(p.price*(1-(p.discount||0)/100))
 const calc=it=>{let sub=0,tax=0;it.forEach(i=>{const l=unit(i)*i.qty;sub+=l;tax+=Math.round(l*i.tax/100)});return{sub,tax,total:sub+tax}}
@@ -33,14 +33,20 @@ function Shop(){
  async function confirm(){
   if(!f.name||!f.phone)return alert('Name and mobile number are required')
   if(!f.delivery_date)return alert('Please choose a delivery date')
+  // iOS Safari: open the window synchronously inside the click, BEFORE any await
+  const wa=window.open('','_blank')
+  if(wa)wa.document.write('<p style="font-family:sans-serif;text-align:center;margin-top:40vh">Placing your order...</p>')
   setBusy(true)
   const {data,error}=await sb.rpc('place_order',{p_name:f.name,p_phone:f.phone,p_address:f.address,
    p_items:cart.map(i=>({name:i.name,price:unit(i),tax:i.tax,qty:i.qty})),p_sub:t.sub,p_tax:t.tax,p_total:t.total,
    p_delivery_date:f.delivery_date,p_delivery_time:f.delivery_time})
-  setBusy(false);if(error)return alert(error.message)
+  setBusy(false)
+  if(error){if(wa)wa.close();return alert(error.message)}
   const no=orderNo(data)
+  const url=`https://wa.me/${WA}?text=${encodeURIComponent(buildWaMessage(data,no))}`
   setCart([]);setOpen(false);setF({name:'',phone:'',address:'',delivery_date:'',delivery_time:''})
-  window.open(`https://wa.me/${WA}?text=${encodeURIComponent(buildWaMessage(data,no))}`,'_blank')}
+  if(wa)wa.location.href=url
+  else window.location.href=url}
  return <>
   <header>
    <img className="logo" src={logo} alt="Sena Kade" style={{cursor:'pointer'}} onClick={()=>{setCat(null);setQ('')}}/>
