@@ -1,5 +1,6 @@
 import {useEffect,useState} from 'react'
 import {createClient} from '@supabase/supabase-js'
+import * as XLSX from 'xlsx'
 import logo from './assets/logo.png'
 const sb=createClient(import.meta.env.VITE_SUPABASE_URL,import.meta.env.VITE_SUPABASE_ANON_KEY)
 const WA=import.meta.env.VITE_WHATSAPP_NUMBER||'817086901215'
@@ -21,7 +22,7 @@ function buildWaMessage(o,no){
 }
 
 const blankForm={name:'',phone:'',address:'',delivery_date:'',delivery_time:'',postal1:'',postal2:'',note:''}
-const TIME_SLOTS=['9-12','12-14','14-16','16-18','18-20','19-21']
+const TIME_SLOTS=['9-12','12-14','14-16','16-18','18-20','19-11']
 
 function Shop(){
  const [cats,setCats]=useState([]),[prods,setProds]=useState([]),[cat,setCat]=useState(null),[q,setQ]=useState('')
@@ -134,6 +135,51 @@ function Admin(){
   const r=id?await sb.from('products').update(row).eq('id',id):await sb.from('products').insert(row)
   if(r.error)return alert(r.error.message);setP(blank);load()}
  async function quick(x,field,value){await sb.from('products').update({[field]:value}).eq('id',x.id);load()}
+ function exportExcel(){
+  const rows=prods.map(x=>({
+   'Item Name':x.name,
+   'Price (JPY)':x.price,
+   'Tax %':x.tax,
+   'Discount %':x.discount||0,
+   'Stock':x.stock,
+   'Category':cats.find(c=>c.id===x.category_id)?.name||''
+  }))
+  const ws=XLSX.utils.json_to_sheet(rows)
+  ws['!cols']=[{wch:36},{wch:12},{wch:8},{wch:10},{wch:8},{wch:18}]
+  const wb=XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb,ws,'Products')
+  XLSX.writeFile(wb,'sena-kade-products-'+new Date().toISOString().slice(0,10)+'.xlsx')
+ }
+ async function importExcel(e){
+  const file=e.target.files[0];if(!file)return
+  try{
+   const buf=await file.arrayBuffer()
+   const wb=XLSX.read(buf,{type:'array'})
+   const ws=wb.Sheets[wb.SheetNames[0]]
+   const rows=XLSX.utils.sheet_to_json(ws)
+   let updated=0;const notFound=[]
+   for(const row of rows){
+    const name=String(row['Item Name']??'').trim()
+    if(!name)continue
+    const match=prods.find(x=>x.name.trim().toLowerCase()===name.toLowerCase())
+    if(!match){notFound.push(name);continue}
+    const catName=String(row['Category']??'').trim()
+    const cat=catName?cats.find(c=>c.name.toLowerCase()===catName.toLowerCase()):null
+    const upd={
+     price:row['Price (JPY)']!==undefined&&row['Price (JPY)']!==''?Number(row['Price (JPY)']):match.price,
+     tax:row['Tax %']!==undefined&&row['Tax %']!==''?Number(row['Tax %']):match.tax,
+     discount:row['Discount %']!==undefined&&row['Discount %']!==''?Number(row['Discount %']):match.discount,
+     stock:row['Stock']!==undefined&&row['Stock']!==''?Number(row['Stock']):match.stock,
+     category_id:catName?(cat?cat.id:match.category_id):match.category_id
+    }
+    const r=await sb.from('products').update(upd).eq('id',match.id)
+    if(!r.error)updated++
+   }
+   e.target.value=''
+   load()
+   alert(`Updated ${updated} product(s).`+(notFound.length?`\n\nThese names were not found (skipped):\n${notFound.join('\n')}`:''))
+  }catch(err){alert('Could not read that file: '+err.message)}
+ }
  async function upload(e){const file=e.target.files[0];if(!file)return;const path=Date.now()+'-'+file.name.replace(/[^\w.]/g,'_')
   const {error}=await sb.storage.from('products').upload(path,file);if(error)return alert(error.message)
   setP({...p,image_url:sb.storage.from('products').getPublicUrl(path).data.publicUrl})}
@@ -189,7 +235,14 @@ function Admin(){
    <div><small style={{fontWeight:700,color:'var(--navy)'}}>Product image</small><input type="file" accept="image/*" onChange={upload}/>{p.image_url&&<img src={p.image_url} width="80" alt="" style={{display:'block',marginTop:6}}/>}</div>
    <div className="row"><button onClick={save}>{p.id?'Save changes':'Add product'}</button>{p.id&&<button className="alt" onClick={()=>setP(blank)}>Cancel</button>}</div></div>
 
-   <input placeholder="Search products..." value={pq} onChange={e=>setPq(e.target.value)} style={{marginBottom:10,width:'100%',maxWidth:320}}/>
+   <div className="row" style={{marginBottom:10,gap:8,flexWrap:'wrap',justifyContent:'flex-start'}}>
+    <input placeholder="Search products..." value={pq} onChange={e=>setPq(e.target.value)} style={{width:'100%',maxWidth:320}}/>
+    <button className="alt" onClick={exportExcel}>Export to Excel</button>
+    <label className="alt" style={{display:'inline-flex',alignItems:'center',padding:'8px 14px',borderRadius:8,cursor:'pointer',margin:0}}>
+     Import from Excel
+     <input type="file" accept=".xlsx,.xls" onChange={importExcel} style={{display:'none'}}/>
+    </label>
+   </div>
    <table><thead><tr><th>Item</th><th>Price</th><th>Discount</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead><tbody>{pshown.map(x=><tr key={x.id}>
     <td>{x.name}{x.new_arrival&&<span className="chip" style={{background:'var(--green)',marginLeft:6}}>NEW</span>}</td>
     <td>{yen(x.price)}</td><td>{x.discount}%</td><td style={{color:x.stock<=3?'var(--red)':'inherit'}}>{x.stock}</td>
