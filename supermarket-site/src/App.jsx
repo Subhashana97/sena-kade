@@ -14,16 +14,23 @@ function buildWaMessage(o,no){
  return `NEW ORDER ${no} - Sena Kade\n\n`+
   `Items:\n${lines}\n\n`+
   `Subtotal: ${yen(o.subtotal)}\nTax: ${yen(o.tax)}\nTotal: ${yen(o.total)}\n\n`+
-  `Customer: ${o.customer_name}\nMobile: ${o.phone}\nDelivery address: ${o.address||'-'}\n`+
-  `Delivery date: ${o.delivery_date||'-'}\nDelivery time: ${o.delivery_time||'-'}`
+  `Customer: ${o.customer_name}\nMobile: ${o.phone}\n`+
+  `Postal code: ${o.postal_code||'-'}\nDelivery address: ${o.address||'-'}\n`+
+  `Delivery date: ${o.delivery_date||'-'}\nDelivery time: ${o.delivery_time||'-'}`+
+  (o.order_note?`\n\nNote: ${o.order_note}`:'')
 }
+
+const blankForm={name:'',phone:'',address:'',delivery_date:'',delivery_time:'',postal1:'',postal2:'',note:''}
+const TIME_SLOTS=['8-12','12-14','14-16','16-18','18-20','17-19']
 
 function Shop(){
  const [cats,setCats]=useState([]),[prods,setProds]=useState([]),[cat,setCat]=useState(null),[q,setQ]=useState('')
  const [cart,setCart]=useState(()=>{try{return JSON.parse(localStorage.cart)||[]}catch{return[]}})
- const [open,setOpen]=useState(false),[f,setF]=useState({name:'',phone:'',address:'',delivery_date:'',delivery_time:''}),[busy,setBusy]=useState(false)
+ const [open,setOpen]=useState(false),[f,setF]=useState(blankForm),[busy,setBusy]=useState(false)
+ const [showTop,setShowTop]=useState(false)
  useEffect(()=>{sb.from('categories').select('*').order('name').then(r=>setCats(r.data||[]));sb.from('products').select('*').order('name').then(r=>setProds(r.data||[]))},[])
  useEffect(()=>{localStorage.cart=JSON.stringify(cart)},[cart])
+ useEffect(()=>{const f=()=>setShowTop(window.scrollY>400);addEventListener('scroll',f);return()=>removeEventListener('scroll',f)},[])
  const newArrivals=prods.filter(p=>p.new_arrival)
  const shown=cat==='new'?newArrivals.filter(p=>p.name.toLowerCase().includes(q.toLowerCase())):
   prods.filter(p=>(!cat||p.category_id===cat)&&p.name.toLowerCase().includes(q.toLowerCase()))
@@ -32,19 +39,22 @@ function Shop(){
  const t=calc(cart)
  async function confirm(){
   if(!f.name||!f.phone)return alert('Name and mobile number are required')
+  if(!/^\d{3}$/.test(f.postal1)||!/^\d{4}$/.test(f.postal2))return alert('Please enter a valid postal code (3 digits + 4 digits)')
   if(!f.delivery_date)return alert('Please choose a delivery date')
+  if(!f.delivery_time)return alert('Please choose a delivery time slot')
   // iOS Safari: open the window synchronously inside the click, BEFORE any await
   const wa=window.open('','_blank')
   if(wa)wa.document.write('<p style="font-family:sans-serif;text-align:center;margin-top:40vh">Placing your order...</p>')
   setBusy(true)
+  const postal=`${f.postal1}-${f.postal2}`
   const {data,error}=await sb.rpc('place_order',{p_name:f.name,p_phone:f.phone,p_address:f.address,
    p_items:cart.map(i=>({name:i.name,price:unit(i),tax:i.tax,qty:i.qty})),p_sub:t.sub,p_tax:t.tax,p_total:t.total,
-   p_delivery_date:f.delivery_date,p_delivery_time:f.delivery_time})
+   p_delivery_date:f.delivery_date,p_delivery_time:f.delivery_time,p_postal_code:postal,p_note:f.note})
   setBusy(false)
   if(error){if(wa)wa.close();return alert(error.message)}
   const no=orderNo(data)
   const url=`https://wa.me/${WA}?text=${encodeURIComponent(buildWaMessage(data,no))}`
-  setCart([]);setOpen(false);setF({name:'',phone:'',address:'',delivery_date:'',delivery_time:''})
+  setCart([]);setOpen(false);setF(blankForm)
   if(wa)wa.location.href=url
   else window.location.href=url}
  return <>
@@ -64,6 +74,7 @@ function Shop(){
     <div className="section-title">All Items</div></>}
    {!shown.length&&<p>No items in this category yet.</p>}
    <div className="grid">{shown.map(p=><ProductCard key={p.id} p={p} add={add} qtyInCart={(cart.find(i=>i.id===p.id)||{}).qty||0}/>)}</div></main></div>
+  {showTop&&<button className="back-to-top" onClick={()=>window.scrollTo({top:0,behavior:'smooth'})} aria-label="Back to top">↑</button>}
   {open&&<div className="drawer"><div className="row"><h3>Your basket</h3><button className="alt" onClick={()=>setOpen(false)}>Close</button></div>
    {!cart.length&&<p>Your basket is empty.</p>}
    {cart.map(i=><div className="row" key={i.id}><span>{i.name}<br/><small>{yen(unit(i))} x {i.qty}</small></span>
@@ -72,11 +83,21 @@ function Shop(){
    <div className="row"><b>Total</b><b>{yen(t.total)}</b></div>
    <div className="form"><input placeholder="Customer name" value={f.name} onChange={e=>setF({...f,name:e.target.value})}/>
     <input placeholder="Mobile number" value={f.phone} onChange={e=>setF({...f,phone:e.target.value})}/>
+    <div><small style={{fontWeight:700,color:'var(--navy)'}}>Postal code</small>
+     <div className="row" style={{margin:0,justifyContent:'flex-start',gap:6}}>
+      <input inputMode="numeric" maxLength={3} placeholder="123" value={f.postal1} onChange={e=>setF({...f,postal1:e.target.value.replace(/\D/g,'').slice(0,3)})} style={{width:70,textAlign:'center'}}/>
+      <b>-</b>
+      <input inputMode="numeric" maxLength={4} placeholder="4567" value={f.postal2} onChange={e=>setF({...f,postal2:e.target.value.replace(/\D/g,'').slice(0,4)})} style={{width:80,textAlign:'center'}}/>
+     </div></div>
     <textarea placeholder="Delivery address" value={f.address} onChange={e=>setF({...f,address:e.target.value})}/>
+    <textarea placeholder="Note for this order (optional)" value={f.note} onChange={e=>setF({...f,note:e.target.value})}/>
     <div><small style={{fontWeight:700,color:'var(--navy)'}}>Delivery date</small>
      <input type="date" min={new Date().toISOString().slice(0,10)} value={f.delivery_date} onChange={e=>setF({...f,delivery_date:e.target.value})} style={{width:'100%'}}/></div>
     <div><small style={{fontWeight:700,color:'var(--navy)'}}>Delivery time slot</small>
-     <input placeholder="e.g. Evening, or 2pm - 4pm" value={f.delivery_time} onChange={e=>setF({...f,delivery_time:e.target.value})} style={{width:'100%'}}/></div>
+     <select value={f.delivery_time} onChange={e=>setF({...f,delivery_time:e.target.value})} style={{width:'100%'}}>
+      <option value="">Select a time slot</option>
+      {TIME_SLOTS.map(s=><option key={s} value={s}>{s}</option>)}
+     </select></div>
     <button disabled={busy} onClick={confirm}>Confirm order → WhatsApp</button></div></>}</div>}
  </>}
 
@@ -184,7 +205,7 @@ function Admin(){
 
   {tab==='o'&&<table><thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th></tr></thead><tbody>{orders.map(o=><tr key={o.id}>
    <td><a href={'#/invoice/'+o.id} target="_blank" rel="noopener" style={{color:'var(--pink)',fontWeight:700,textDecoration:'underline',cursor:'pointer'}}>{orderNo(o)}</a></td>
-   <td>{o.customer_name}<br/><small>{o.phone}</small><br/><small>{o.address}</small><br/><small>Delivery: {o.delivery_date||'-'} {o.delivery_time||''}</small></td>
+   <td>{o.customer_name}<br/><small>{o.phone}</small><br/><small>〒{o.postal_code||'-'} {o.address}</small><br/><small>Delivery: {o.delivery_date||'-'} {o.delivery_time||''}</small>{o.order_note&&<><br/><small>Note: {o.order_note}</small></>}</td>
    <td>{o.items.map(i=>`${i.name} x${i.qty}`).join(', ')}</td><td>{yen(o.total)}</td>
    <td><select style={{borderColor:statusColor[o.status]}} value={o.status} onChange={async e=>{await sb.from('orders').update({status:e.target.value}).eq('id',o.id);load()}}>{['Pending','Confirmed','Delivered','Cancelled'].map(s=><option key={s}>{s}</option>)}</select></td></tr>)}</tbody></table>}
  </div>}
@@ -221,7 +242,7 @@ function Invoice(){
   </div>
   <div style={{display:'flex',justifyContent:'space-between',marginBottom:24}}>
    <div><small style={{color:'#888',fontWeight:700}}>BILL TO</small>
-    <div style={{fontSize:15,marginTop:4}}><b>{o.customer_name}</b><br/>{o.phone}<br/>{o.address||'-'}</div></div>
+    <div style={{fontSize:15,marginTop:4}}><b>{o.customer_name}</b><br/>{o.phone}<br/>{'〒'}{o.postal_code||'-'}&nbsp; {o.address||'-'}</div></div>
    <div style={{textAlign:'right'}}><small style={{color:'#888',fontWeight:700}}>DELIVERY</small>
     <div style={{fontSize:15,marginTop:4}}>{o.delivery_date||'-'}<br/>{o.delivery_time||'-'}</div></div>
   </div>
@@ -250,6 +271,7 @@ function Invoice(){
     <tr style={{borderTop:'2px solid #172a45',fontWeight:700,fontSize:17}}><td style={{padding:'8px 10px'}}>Total (JPY)</td><td style={{padding:'8px 10px',textAlign:'right'}}>{yen(o.total)}</td></tr>
    </tbody></table>
   </div>
+  {o.order_note&&<div style={{marginBottom:20,padding:'10px 14px',background:'#fff8ee',borderRadius:8,fontSize:13}}><b>Note:</b> {o.order_note}</div>}
   <div style={{marginTop:40,paddingTop:16,borderTop:'1px solid #e5e5e5',fontSize:12,color:'#888',textAlign:'center'}}>
    Thank you for shopping with Sena Kade. This is a computer-generated invoice.
   </div>
