@@ -64,6 +64,9 @@ function Shop(){
    <h1 style={{cursor:'pointer'}} onClick={()=>{setCat(null);setQ('')}}>Sena Kade<small>セナカデー</small></h1>
    <input placeholder="Search items..." value={q} onChange={e=>setQ(e.target.value)}/>
    <button onClick={()=>setOpen(true)}>Basket ({cart.reduce((a,i)=>a+i.qty,0)})</button></header>
+  <div style={{background:'var(--red)',color:'#fff',textAlign:'center',fontWeight:700,padding:'10px 16px',fontSize:14}}>
+   ඔබ මිලදී ගන්නා භාණ්ඩ නිසි ගුණාත්මකභාවයෙන් නොතිබුණහොත් නැවත ඔබට මුදල් ගෙවනු ලැබේ.
+  </div>
   <div className="layout"><aside>
    <div className={!cat?'on':''} onClick={()=>{setCat(null);setQ('')}}>All items</div>
    {newArrivals.length>0&&<div className={cat==='new'?'on':''} onClick={()=>setCat('new')}>New Arrivals</div>}
