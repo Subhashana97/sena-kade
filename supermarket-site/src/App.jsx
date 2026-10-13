@@ -21,7 +21,7 @@ function buildWaMessage(o,no){
 }
 
 const blankForm={name:'',phone:'',address:'',delivery_date:'',delivery_time:'',postal1:'',postal2:'',note:''}
-const TIME_SLOTS=['9-12','12-14','14-16','16-18','18-20','19-11']
+const TIME_SLOTS=['9-12','12-14','14-16','16-18','18-20','19-21']
 
 function Shop(){
  const [cats,setCats]=useState([]),[prods,setProds]=useState([]),[cat,setCat]=useState(null),[q,setQ]=useState('')
