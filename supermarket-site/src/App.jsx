@@ -130,6 +130,7 @@ const statusColor={Pending:'#f6a21e',Confirmed:'#2f8f4e',Delivered:'#223a5e',Can
 function Admin(){
  const [user,setUser]=useState(null),[em,setEm]=useState(''),[pw,setPw]=useState(''),[tab,setTab]=useState('d')
  const [cats,setCats]=useState([]),[prods,setProds]=useState([]),[orders,setOrders]=useState([]),[p,setP]=useState(blank),[cn,setCn]=useState(''),[pq,setPq]=useState('')
+ const [ecId,setEcId]=useState(null),[ecName,setEcName]=useState('')
  useEffect(()=>{sb.auth.getSession().then(r=>setUser(r.data.session?.user||null))},[])
  const load=()=>{sb.from('categories').select('*').order('name').then(r=>setCats(r.data||[]));sb.from('products').select('*').order('id',{ascending:false}).then(r=>setProds(r.data||[]));sb.from('orders').select('*').order('id',{ascending:false}).then(r=>setOrders(r.data||[]))}
  useEffect(()=>{if(user)load()},[user])
@@ -257,7 +258,16 @@ function Admin(){
     </div></td></tr>)}</tbody></table></>}
 
   {tab==='c'&&<><div className="row kv" style={{justifyContent:'flex-start'}}><input placeholder="New category" value={cn} onChange={e=>setCn(e.target.value)}/><button onClick={async()=>{if(!cn)return;const r=await sb.from('categories').insert({name:cn});if(r.error)return alert(r.error.message);setCn('');load()}}>Add category</button></div>
-   <table><tbody>{cats.map(c=><tr key={c.id}><td>{c.name}</td><td><button className="del" onClick={async()=>{if(confirm('Delete category? Its items stay, uncategorised.')){await sb.from('categories').delete().eq('id',c.id);load()}}}>Delete</button></td></tr>)}</tbody></table></>}
+   <table><tbody>{cats.map(c=><tr key={c.id}>
+    <td>{ecId===c.id?<input value={ecName} onChange={e=>setEcName(e.target.value)} style={{width:'100%'}}/>:c.name}</td>
+    <td><div className="actions">
+     {ecId===c.id?<>
+      <button className="ghost alt" onClick={async()=>{if(!ecName.trim())return alert('Category name required');const r=await sb.from('categories').update({name:ecName.trim()}).eq('id',c.id);if(r.error)return alert(r.error.message);setEcId(null);load()}}>Save</button>
+      <button className="ghost alt" onClick={()=>setEcId(null)}>Cancel</button></>
+      :<>
+      <button className="ghost alt" onClick={()=>{setEcId(c.id);setEcName(c.name)}}>Rename</button>
+      <button className="del" onClick={async()=>{if(confirm('Delete category? Its items stay, uncategorised.')){await sb.from('categories').delete().eq('id',c.id);load()}}}>Delete</button></>}
+    </div></td></tr>)}</tbody></table></>}
 
   {tab==='o'&&<table><thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th></tr></thead><tbody>{orders.map(o=><tr key={o.id}>
    <td><a href={'#/invoice/'+o.id} target="_blank" rel="noopener" style={{color:'var(--pink)',fontWeight:700,textDecoration:'underline',cursor:'pointer'}}>{orderNo(o)}</a></td>
