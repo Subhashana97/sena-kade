@@ -21,7 +21,7 @@ function buildWaMessage(o,no){
 }
 
 const blankForm={name:'',phone:'',address:'',delivery_date:'',delivery_time:'',postal1:'',postal2:'',note:''}
-const TIME_SLOTS=['8-12','12-14','14-16','16-18','18-20','17-19']
+const TIME_SLOTS=['9-12','12-14','14-16','16-18','18-20','19-11']
 
 function Shop(){
  const [cats,setCats]=useState([]),[prods,setProds]=useState([]),[cat,setCat]=useState(null),[q,setQ]=useState('')
@@ -90,7 +90,6 @@ function Shop(){
       <input inputMode="numeric" maxLength={4} placeholder="4567" value={f.postal2} onChange={e=>setF({...f,postal2:e.target.value.replace(/\D/g,'').slice(0,4)})} style={{width:80,textAlign:'center'}}/>
      </div></div>
     <textarea placeholder="Delivery address" value={f.address} onChange={e=>setF({...f,address:e.target.value})}/>
-    <textarea placeholder="Note for this order (optional)" value={f.note} onChange={e=>setF({...f,note:e.target.value})}/>
     <div><small style={{fontWeight:700,color:'var(--navy)'}}>Delivery date</small>
      <input type="date" min={new Date().toISOString().slice(0,10)} value={f.delivery_date} onChange={e=>setF({...f,delivery_date:e.target.value})} style={{width:'100%'}}/></div>
     <div><small style={{fontWeight:700,color:'var(--navy)'}}>Delivery time slot</small>
@@ -98,6 +97,7 @@ function Shop(){
       <option value="">Select a time slot</option>
       {TIME_SLOTS.map(s=><option key={s} value={s}>{s}</option>)}
      </select></div>
+    <textarea placeholder="Note for this order (optional)" value={f.note} onChange={e=>setF({...f,note:e.target.value})}/>
     <button disabled={busy} onClick={confirm}>Confirm order → WhatsApp</button></div></>}</div>}
  </>}
 
