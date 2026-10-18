@@ -225,6 +225,8 @@ function Admin(){
   </>}
 
   {tab==='p'&&<><div className="form kv"><h3>{p.id?'Edit product':'Add new product'}</h3>
+   <div><small style={{fontWeight:700,color:'var(--navy)'}}>Product ID</small>
+    {p.id?<b style={{color:'var(--pink)'}}>{p.product_code||'-'}</b>:<i style={{color:'#8a7a60'}}>Auto-generated after you add the product</i>}</div>
    <div><small style={{fontWeight:700,color:'var(--navy)'}}>Item name</small><input placeholder="e.g. Araliya Sudu Kekulu - 5Kg" value={p.name} onChange={e=>setP({...p,name:e.target.value})}/></div>
    <div><small style={{fontWeight:700,color:'var(--navy)'}}>Price (JPY)</small><input type="number" value={p.price} onChange={num('price')}/></div>
    <div><small style={{fontWeight:700,color:'var(--navy)'}}>Tax %</small><input type="number" value={p.tax} onChange={num('tax')}/></div>
@@ -247,7 +249,8 @@ function Admin(){
      <input type="file" accept=".xlsx,.xls" onChange={importExcel} style={{display:'none'}}/>
     </label>
    </div>
-   <table><thead><tr><th>Item</th><th>Price</th><th>Discount</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead><tbody>{pshown.map(x=><tr key={x.id}>
+   <table><thead><tr><th>Product ID</th><th>Item</th><th>Price</th><th>Discount</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead><tbody>{pshown.map(x=><tr key={x.id}>
+    <td style={{fontWeight:700,color:'var(--pink)',whiteSpace:'nowrap'}}>{x.product_code||'-'}</td>
     <td>{x.name}{x.new_arrival&&<span className="chip" style={{background:'var(--green)',marginLeft:6}}>NEW</span>}</td>
     <td>{yen(x.price)}</td><td>{x.discount}%</td><td style={{color:x.stock<=3?'var(--red)':'inherit'}}>{x.stock}</td>
     <td>{x.available?<span className="chip" style={{background:'var(--green)'}}>Available</span>:<span className="chip" style={{background:'var(--red)'}}>Unavailable</span>}</td>
