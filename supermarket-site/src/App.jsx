@@ -5,7 +5,7 @@ import logo from './assets/logo.png'
 const sb=createClient(import.meta.env.VITE_SUPABASE_URL,import.meta.env.VITE_SUPABASE_ANON_KEY)
 const WA=import.meta.env.VITE_WHATSAPP_NUMBER||'817086901215'
 const yen=n=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY'}).format(n)
-const unit=p=>Math.round(p.price*(1-(p.discount||0)/100))
+const unit=p=>Math.max(0,Math.round(p.price-(p.discount||0)))
 const calc=it=>{let sub=0,tax=0;it.forEach(i=>{const l=unit(i)*i.qty;sub+=l;tax+=Math.round(l*i.tax/100)});return{sub,tax,total:sub+tax}}
 const orderNo=o=>'SO-'+new Date(o.created_at).getFullYear()+'-'+String(o.id).padStart(4,'0')
 const isToday=d=>{const a=new Date(d),b=new Date();return a.toDateString()===b.toDateString()}
@@ -109,7 +109,7 @@ function ProductCard({p,add,qtyInCart}){
  const [sel,setSel]=useState(1)
  const maxSel=Math.max(0,p.stock-qtyInCart)
  return <div className="card">
-  {p.discount>0&&<span className="badge">-{p.discount}%</span>}
+  {p.discount>0&&<span className="badge">-{yen(p.discount)}</span>}
   {p.new_arrival&&<span className="badge new">NEW</span>}
   {p.image_url?<img src={p.image_url} alt={p.name}/>:<div className="ph"/>}
   <b>{p.name}</b><div>{p.discount>0&&<span className="old">{yen(p.price)} </span>}<span className="price">{yen(unit(p))}</span></div>
@@ -141,15 +141,16 @@ function Admin(){
  async function quick(x,field,value){await sb.from('products').update({[field]:value}).eq('id',x.id);load()}
  function exportExcel(){
   const rows=prods.map(x=>({
+   'Product ID':x.product_code||'',
    'Item Name':x.name,
    'Price (JPY)':x.price,
    'Tax %':x.tax,
-   'Discount %':x.discount||0,
+   'Discount (JPY)':x.discount||0,
    'Stock':x.stock,
    'Category':cats.find(c=>c.id===x.category_id)?.name||''
   }))
   const ws=XLSX.utils.json_to_sheet(rows)
-  ws['!cols']=[{wch:36},{wch:12},{wch:8},{wch:10},{wch:8},{wch:18}]
+  ws['!cols']=[{wch:14},{wch:36},{wch:12},{wch:8},{wch:10},{wch:8},{wch:18}]
   const wb=XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb,ws,'Products')
   XLSX.writeFile(wb,'sena-kade-products-'+new Date().toISOString().slice(0,10)+'.xlsx')
@@ -163,16 +164,18 @@ function Admin(){
    const rows=XLSX.utils.sheet_to_json(ws)
    let updated=0;const notFound=[]
    for(const row of rows){
-    const name=String(row['Item Name']??'').trim()
-    if(!name)continue
-    const match=prods.find(x=>x.name.trim().toLowerCase()===name.toLowerCase())
-    if(!match){notFound.push(name);continue}
+    const code=String(row['Product ID']??'').trim()
+    if(!code)continue
+    const match=prods.find(x=>(x.product_code||'').trim().toLowerCase()===code.toLowerCase())
+    if(!match){notFound.push(code);continue}
     const catName=String(row['Category']??'').trim()
     const cat=catName?cats.find(c=>c.name.toLowerCase()===catName.toLowerCase()):null
+    const newName=String(row['Item Name']??'').trim()
     const upd={
+     name:newName||match.name,
      price:row['Price (JPY)']!==undefined&&row['Price (JPY)']!==''?Number(row['Price (JPY)']):match.price,
      tax:row['Tax %']!==undefined&&row['Tax %']!==''?Number(row['Tax %']):match.tax,
-     discount:row['Discount %']!==undefined&&row['Discount %']!==''?Number(row['Discount %']):match.discount,
+     discount:row['Discount (JPY)']!==undefined&&row['Discount (JPY)']!==''?Number(row['Discount (JPY)']):match.discount,
      stock:row['Stock']!==undefined&&row['Stock']!==''?Number(row['Stock']):match.stock,
      category_id:catName?(cat?cat.id:match.category_id):match.category_id
     }
@@ -181,7 +184,7 @@ function Admin(){
    }
    e.target.value=''
    load()
-   alert(`Updated ${updated} product(s).`+(notFound.length?`\n\nThese names were not found (skipped):\n${notFound.join('\n')}`:''))
+   alert(`Updated ${updated} product(s).`+(notFound.length?`\n\nThese Product IDs were not found (skipped):\n${notFound.join('\n')}`:''))
   }catch(err){alert('Could not read that file: '+err.message)}
  }
  async function upload(e){const file=e.target.files[0];if(!file)return;const path=Date.now()+'-'+file.name.replace(/[^\w.]/g,'_')
@@ -230,7 +233,7 @@ function Admin(){
    <div><small style={{fontWeight:700,color:'var(--navy)'}}>Item name</small><input placeholder="e.g. Araliya Sudu Kekulu - 5Kg" value={p.name} onChange={e=>setP({...p,name:e.target.value})}/></div>
    <div><small style={{fontWeight:700,color:'var(--navy)'}}>Price (JPY)</small><input type="number" value={p.price} onChange={num('price')}/></div>
    <div><small style={{fontWeight:700,color:'var(--navy)'}}>Tax %</small><input type="number" value={p.tax} onChange={num('tax')}/></div>
-   <div><small style={{fontWeight:700,color:'var(--navy)'}}>Discount %</small><input type="number" value={p.discount} onChange={num('discount')}/></div>
+   <div><small style={{fontWeight:700,color:'var(--navy)'}}>Discount (¥ amount off)</small><input type="number" value={p.discount} onChange={num('discount')}/></div>
    <div><small style={{fontWeight:700,color:'var(--navy)'}}>Stock quantity</small><input type="number" value={p.stock} onChange={num('stock')}/></div>
    <div><small style={{fontWeight:700,color:'var(--navy)'}}>Category</small>
     <select value={p.category_id||''} onChange={e=>setP({...p,category_id:e.target.value?Number(e.target.value):''})}><option value="">No category</option>{cats.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
@@ -252,7 +255,7 @@ function Admin(){
    <table><thead><tr><th>Product ID</th><th>Item</th><th>Price</th><th>Discount</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead><tbody>{pshown.map(x=><tr key={x.id}>
     <td style={{fontWeight:700,color:'var(--pink)',whiteSpace:'nowrap'}}>{x.product_code||'-'}</td>
     <td>{x.name}{x.new_arrival&&<span className="chip" style={{background:'var(--green)',marginLeft:6}}>NEW</span>}</td>
-    <td>{yen(x.price)}</td><td>{x.discount}%</td><td style={{color:x.stock<=3?'var(--red)':'inherit'}}>{x.stock}</td>
+    <td>{yen(x.price)}</td><td>{x.discount?yen(x.discount):'-'}</td><td style={{color:x.stock<=3?'var(--red)':'inherit'}}>{x.stock}</td>
     <td>{x.available?<span className="chip" style={{background:'var(--green)'}}>Available</span>:<span className="chip" style={{background:'var(--red)'}}>Unavailable</span>}</td>
     <td><div className="actions">
      <button className="ghost alt" onClick={()=>setP(x)}>Edit</button>
