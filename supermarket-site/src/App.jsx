@@ -106,7 +106,7 @@ function Shop(){
  </>}
 
 function ProductCard({p,add,qtyInCart}){
- const [sel,setSel]=useState(1)
+ const [sel,setSel]=useState(0)
  const maxSel=Math.max(0,p.stock-qtyInCart)
  return <div className="card">
   {p.discount>0&&<span className="badge">-{yen(p.discount)}</span>}
@@ -116,11 +116,11 @@ function ProductCard({p,add,qtyInCart}){
   <small>Tax {p.tax}% extra{qtyInCart>0?` • ${qtyInCart} in basket`:''}</small>
   {!p.available||p.stock<1?<button disabled>Sold out</button>:<>
    <div className="row" style={{margin:0}}>
-    <button className="alt" onClick={()=>setSel(n=>Math.max(1,n-1))}>-</button>
+    <button className="alt" onClick={()=>setSel(n=>Math.max(0,n-1))} disabled={sel<=0}>-</button>
     <b>{sel}</b>
-    <button className="alt" onClick={()=>setSel(n=>Math.min(maxSel||1,n+1))} disabled={sel>=maxSel}>+</button>
+    <button className="alt" onClick={()=>setSel(n=>Math.min(maxSel||0,n+1))} disabled={sel>=maxSel}>+</button>
    </div>
-   <button disabled={maxSel<1} onClick={()=>{add(p,sel);setSel(1)}}>{maxSel<1?'Sold out':'Add to basket'}</button>
+   <button disabled={maxSel<1||sel<1} onClick={()=>{add(p,sel);setSel(0)}}>{maxSel<1?'Sold out':'Add to basket'}</button>
   </>}
   </div>}
 
