@@ -48,5 +48,16 @@ th{background:var(--navy);color:#fff}
 .chip{display:inline-block;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;color:#fff}
 .actions{display:flex;gap:4px;flex-wrap:wrap}
 .back-to-top{position:fixed;right:18px;bottom:24px;width:48px;height:48px;border-radius:50%;box-shadow:0 4px 14px rgba(23,42,69,.35);font-size:20px;line-height:1;z-index:8;padding:0;display:flex;align-items:center;justify-content:center}
+aside div.hot{color:#fff;font-weight:700;justify-content:space-between}
+aside div.hot .tag{font-size:10px;font-weight:800;letter-spacing:.5px;background:#fff;padding:2px 8px;border-radius:10px}
+aside div.offers,.cat-banner.offers{background:linear-gradient(135deg,#ff3b30,#ff8a00)}
+aside div.offers .tag{color:#d7263d}
+aside div.offers{animation:pulse 1.6s ease-in-out infinite}
+aside div.veg,.cat-banner.veg{background:linear-gradient(135deg,#1f9d4a,#7bc043)}
+aside div.veg .tag{color:#2f8f4e}
+aside div.hot.on{outline:3px solid var(--navy);outline-offset:1px}
+.cat-banner{color:#fff;font-family:'Fredoka',system-ui,sans-serif;font-size:22px;font-weight:700;padding:12px 16px;border-radius:12px;margin-bottom:14px}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,59,48,.55)}70%{box-shadow:0 0 0 9px rgba(255,59,48,0)}100%{box-shadow:0 0 0 0 rgba(255,59,48,0)}}
+@media(prefers-reduced-motion:reduce){aside div.offers{animation:none}}
 @media(max-width:700px){.layout{flex-direction:column}aside{width:100%;display:flex;overflow:auto;gap:6px;border-right:0}aside div{white-space:nowrap}}
 </style></head><body><div id="root"></div><script type="module" src="/src/main.jsx"></script></body></html>
