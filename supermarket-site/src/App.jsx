@@ -8,6 +8,8 @@ const yen=n=>new Intl.NumberFormat('ja-JP',{style:'currency',currency:'JPY'}).fo
 const unit=p=>Math.max(0,Math.round(p.price-(p.discount||0)))
 const calc=it=>{let sub=0,tax=0;it.forEach(i=>{const l=unit(i)*i.qty;sub+=l;tax+=Math.round(l*i.tax/100)});return{sub,tax,total:sub+tax}}
 const orderNo=o=>'SO-'+new Date(o.created_at).getFullYear()+'-'+String(o.id).padStart(4,'0')
+const catKind=n=>{const s=String(n||'').trim().toLowerCase();return /^offers?$/.test(s)?'offers':/^vegetables?$/.test(s)?'veg':''}
+const catRank=c=>({offers:0,veg:1}[catKind(c.name)]??2)
 const isToday=d=>{const a=new Date(d),b=new Date();return a.toDateString()===b.toDateString()}
 
 function buildWaMessage(o,no){
@@ -70,8 +72,9 @@ function Shop(){
   <div className="layout"><aside>
    <div className={!cat?'on':''} onClick={()=>{setCat(null);setQ('')}}>All items</div>
    {newArrivals.length>0&&<div className={cat==='new'?'on':''} onClick={()=>setCat('new')}>New Arrivals</div>}
-   {cats.map(c=><div key={c.id} className={cat===c.id?'on':''} onClick={()=>setCat(c.id)}>{c.name}</div>)}</aside>
+   {[...cats].sort((a,b)=>catRank(a)-catRank(b)).map(c=>{const k=catKind(c.name);return <div key={c.id} className={(cat===c.id?'on ':'')+(k?'hot '+k:'')} onClick={()=>setCat(c.id)}>{c.name}{k==='offers'&&<span className="tag">HOT</span>}{k==='veg'&&<span className="tag">FRESH</span>}</div>})}</aside>
   <main>
+   {typeof cat==='number'&&(()=>{const c=cats.find(x=>x.id===cat),k=c&&catKind(c.name);return k?<div className={'cat-banner '+k}>{c.name}</div>:null})()}
    {!cat&&!q&&newArrivals.length>0&&<>
     <div className="section-title">New Arrivals</div>
     <div className="grid" style={{marginBottom:24}}>{newArrivals.map(p=><ProductCard key={p.id} p={p} add={add} qtyInCart={(cart.find(i=>i.id===p.id)||{}).qty||0}/>)}</div>
