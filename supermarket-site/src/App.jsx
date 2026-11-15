@@ -130,7 +130,7 @@ const statusColor={Pending:'#f6a21e',Confirmed:'#2f8f4e',Delivered:'#223a5e',Can
 function Admin(){
  const [user,setUser]=useState(null),[em,setEm]=useState(''),[pw,setPw]=useState(''),[tab,setTab]=useState('d')
  const [cats,setCats]=useState([]),[prods,setProds]=useState([]),[orders,setOrders]=useState([]),[p,setP]=useState(blank),[cn,setCn]=useState(''),[pq,setPq]=useState('')
- const [ecId,setEcId]=useState(null),[ecName,setEcName]=useState('')
+ const [ecId,setEcId]=useState(null),[ecName,setEcName]=useState(''),[syncDel,setSyncDel]=useState(true)
  useEffect(()=>{sb.auth.getSession().then(r=>setUser(r.data.session?.user||null))},[])
  const load=()=>{sb.from('categories').select('*').order('name').then(r=>setCats(r.data||[]));sb.from('products').select('*').order('id',{ascending:false}).then(r=>setProds(r.data||[]));sb.from('orders').select('*').order('id',{ascending:false}).then(r=>setOrders(r.data||[]))}
  useEffect(()=>{if(user)load()},[user])
@@ -156,36 +156,68 @@ function Admin(){
   XLSX.writeFile(wb,'sena-kade-products-'+new Date().toISOString().slice(0,10)+'.xlsx')
  }
  async function importExcel(e){
-  const file=e.target.files[0];if(!file)return
+  const input=e.target,file=input.files[0];if(!file)return
   try{
    const buf=await file.arrayBuffer()
    const wb=XLSX.read(buf,{type:'array'})
-   const ws=wb.Sheets[wb.SheetNames[0]]
-   const rows=XLSX.utils.sheet_to_json(ws)
-   let updated=0;const notFound=[]
-   for(const row of rows){
+   const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''})
+   if(!rows.length)return alert('The Excel file has no rows.')
+   if(!('Product ID' in rows[0]))return alert('This file has no "Product ID" column. Please use a file exported from this website (keep the header row).')
+   // always compare against the live database, not what is on screen
+   const [pr,cr]=await Promise.all([sb.from('products').select('*'),sb.from('categories').select('*')])
+   if(pr.error||cr.error)throw new Error((pr.error||cr.error).message)
+   const dbProds=pr.data,dbCats=cr.data
+   const errors=[],warns=[],updates=[],creates=[],keep=new Set()
+   const numv=(row,key,fb,line)=>{const v=row[key];if(v===''||v==null)return fb;const x=Number(v);if(!Number.isFinite(x)){errors.push(`Row ${line}: "${key}" must be a number (found "${v}")`);return fb}return x}
+   rows.forEach((row,i)=>{
+    const line=i+2
     const code=String(row['Product ID']??'').trim()
-    if(!code)continue
-    const match=prods.find(x=>(x.product_code||'').trim().toLowerCase()===code.toLowerCase())
-    if(!match){notFound.push(code);continue}
+    const name=String(row['Item Name']??'').trim()
+    if(!code&&!name)return
     const catName=String(row['Category']??'').trim()
-    const cat=catName?cats.find(c=>c.name.toLowerCase()===catName.toLowerCase()):null
-    const newName=String(row['Item Name']??'').trim()
-    const upd={
-     name:newName||match.name,
-     price:row['Price (JPY)']!==undefined&&row['Price (JPY)']!==''?Number(row['Price (JPY)']):match.price,
-     tax:row['Tax %']!==undefined&&row['Tax %']!==''?Number(row['Tax %']):match.tax,
-     discount:row['Discount (JPY)']!==undefined&&row['Discount (JPY)']!==''?Number(row['Discount (JPY)']):match.discount,
-     stock:row['Stock']!==undefined&&row['Stock']!==''?Number(row['Stock']):match.stock,
-     category_id:catName?(cat?cat.id:match.category_id):match.category_id
+    const cat=catName?dbCats.find(c=>c.name.trim().toLowerCase()===catName.toLowerCase()):null
+    if(catName&&!cat)warns.push(`Row ${line}: category "${catName}" does not exist${code?' (category left as it was)':' (new product will have no category)'}`)
+    if(code){
+     const m=dbProds.find(x=>(x.product_code||'').trim().toLowerCase()===code.toLowerCase())
+     if(!m){errors.push(`Row ${line}: Product ID "${code}" does not exist`);return}
+     if(keep.has(m.id)){errors.push(`Row ${line}: Product ID "${code}" appears more than once`);return}
+     keep.add(m.id)
+     updates.push({id:m.id,upd:{
+      name:name||m.name,
+      price:numv(row,'Price (JPY)',m.price,line),
+      tax:numv(row,'Tax %',m.tax,line),
+      discount:numv(row,'Discount (JPY)',m.discount||0,line),
+      stock:numv(row,'Stock',m.stock,line),
+      category_id:catName&&cat?cat.id:m.category_id}})
+    }else{
+     creates.push({name,
+      price:numv(row,'Price (JPY)',0,line),
+      tax:numv(row,'Tax %',10,line),
+      discount:numv(row,'Discount (JPY)',0,line),
+      stock:numv(row,'Stock',0,line),
+      category_id:cat?cat.id:null,available:true,new_arrival:false})
     }
-    const r=await sb.from('products').update(upd).eq('id',match.id)
-    if(!r.error)updated++
-   }
-   e.target.value=''
+   })
+   if(errors.length)return alert('Nothing was changed. Please fix these problems in the Excel file and upload again:\n\n'+errors.slice(0,20).join('\n')+(errors.length>20?`\n...and ${errors.length-20} more`:''))
+   const toDelete=syncDel?dbProds.filter(x=>!keep.has(x.id)):[]
+   const list=a=>a.slice(0,12).map(x=>'  - '+x).join('\n')+(a.length>12?`\n  ...and ${a.length-12} more`:'')
+   let msg=`Excel import summary\n\nUpdate existing products: ${updates.length}\nAdd new products: ${creates.length}`
+   if(creates.length)msg+='\n'+list(creates.map(x=>x.name))
+   msg+=`\nDelete products: ${toDelete.length}`
+   if(toDelete.length)msg+='\n'+list(toDelete.map(x=>`${x.product_code||'-'}  ${x.name}`))
+   if(warns.length)msg+='\n\nWarnings:\n'+warns.slice(0,10).join('\n')
+   msg+=toDelete.length?'\n\nDeleted products CANNOT be restored. Continue?':'\n\nContinue?'
+   if(!confirm(msg))return
+   let failed=0
+   for(let i=0;i<updates.length;i+=10){
+    const rs=await Promise.all(updates.slice(i,i+10).map(u=>sb.from('products').update(u.upd).eq('id',u.id)))
+    failed+=rs.filter(r=>r.error).length}
+   if(creates.length){const r=await sb.from('products').insert(creates);if(r.error){failed+=creates.length;alert('Could not add new products: '+r.error.message)}}
+   if(toDelete.length){const ids=toDelete.map(x=>x.id);for(let i=0;i<ids.length;i+=100){const r=await sb.from('products').delete().in('id',ids.slice(i,i+100));if(r.error){failed+=1;alert('Could not delete some products: '+r.error.message)}}}
    load()
-   alert(`Updated ${updated} product(s).`+(notFound.length?`\n\nThese Product IDs were not found (skipped):\n${notFound.join('\n')}`:''))
+   alert(`Done.\nUpdated: ${updates.length}\nAdded: ${creates.length}\nDeleted: ${toDelete.length}`+(failed?`\n\n${failed} operation(s) failed - please check and try again.`:''))
   }catch(err){alert('Could not read that file: '+err.message)}
+  finally{input.value=''}
  }
  async function upload(e){const file=e.target.files[0];if(!file)return;const path=Date.now()+'-'+file.name.replace(/[^\w.]/g,'_')
   const {error}=await sb.storage.from('products').upload(path,file);if(error)return alert(error.message)
@@ -251,7 +283,11 @@ function Admin(){
      Import from Excel
      <input type="file" accept=".xlsx,.xls" onChange={importExcel} style={{display:'none'}}/>
     </label>
+    <label style={{display:'inline-flex',alignItems:'center',gap:6,fontSize:13,margin:0,color:'var(--red)',fontWeight:600}}>
+     <input type="checkbox" checked={syncDel} onChange={e=>setSyncDel(e.target.checked)} style={{padding:0}}/> Delete products missing from the Excel file
+    </label>
    </div>
+   <small style={{display:'block',marginBottom:10,color:'#8a7a60'}}>Excel rules: a row with a Product ID updates that product. A row with an empty Product ID is added as a new product (add its photo afterwards with Edit). A product whose row you removed from the file is deleted when the box above is ticked.</small>
    <table><thead><tr><th>Product ID</th><th>Item</th><th>Price</th><th>Discount</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead><tbody>{pshown.map(x=><tr key={x.id}>
     <td style={{fontWeight:700,color:'var(--pink)',whiteSpace:'nowrap'}}>{x.product_code||'-'}</td>
     <td>{x.name}{x.new_arrival&&<span className="chip" style={{background:'var(--green)',marginLeft:6}}>NEW</span>}</td>
